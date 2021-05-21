@@ -250,7 +250,7 @@ other content
         let expected_chapter = "whatever
 <div class=\"validated-content\" links=\"https://github.com/example/example/issues/1\">
 
-⚠️ This is only valid while [example/example#1](https://github.com/example/example/issues/1) is open ⚠️
+⚠️ This is only valid while [`example/example#1`](https://github.com/example/example/issues/1) is open
 
 some content to be conditionally included.
 
