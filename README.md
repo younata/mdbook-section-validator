@@ -1,5 +1,11 @@
 # mdbook-section-validator
 
+![[CI status](https://ci.younata.com/teams/main/pipelines/knowledge/jobs/mdbook-section-validator/)](https://ci.younata.com/api/v1/pipelines/knowledge/jobs/mdbook-section-validator/badge)
+
+mdbook preprocessor for providing sections that are conditionally valid/invalid.
+
+Useful for providing information on workarounds that are subject to get fixed.
+
 ## Getting Started
 
 First, install the `mdbook-section-validator` crate

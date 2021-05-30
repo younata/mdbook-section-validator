@@ -2,7 +2,10 @@ use url::Url;
 use regex::Regex;
 use serde::Deserialize;
 use reqwest::{Result, StatusCode};
-use reqwest::blocking::{Client, Response};
+use reqwest::Client;
+use async_trait::async_trait;
+use futures::future::FutureExt;
+use futures::executor::block_on;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum GithubIssueType {
@@ -53,23 +56,25 @@ struct IssueResult {
     state: String
 }
 
+#[async_trait]
 pub trait IssueValidator {
-    fn validate(&self, issue: &Issue) -> ValidationResult;
+    async fn validate(&self, issue: &Issue) -> ValidationResult;
 }
 
 pub struct DefaultIssueValidator;
 
+#[async_trait]
 impl IssueValidator for DefaultIssueValidator {
-    fn validate(&self, issue: &Issue) -> ValidationResult {
+    async fn validate(&self, issue: &Issue) -> ValidationResult {
         match issue {
-            Issue::Github(owner, repo, number, issue_type, _url) => self.github_validation_result(owner, repo, number, issue_type),
-            Issue::Link(url) => self.arbitrary_url_validation_result(url)
+            Issue::Github(owner, repo, number, issue_type, _url) => self.github_validation_result(owner, repo, number, issue_type).await,
+            Issue::Link(url) => self.arbitrary_url_validation_result(url).await
         }
     }
 }
 
 impl DefaultIssueValidator {
-    fn github_validation_result(&self, owner: &str, repo: &str, number: &str, issue_type: &GithubIssueType) -> ValidationResult {
+    async fn github_validation_result(&self, owner: &str, repo: &str, number: &str, issue_type: &GithubIssueType) -> ValidationResult {
         let issue_kind = match issue_type {
             GithubIssueType::Issue => "issues",
             GithubIssueType::PullRequest => "pulls"
@@ -85,34 +90,36 @@ impl DefaultIssueValidator {
         let client = Client::new();
         let request = client.get(&request_url)
             .header("User-Agent", "younata/mdbook-section-validator");
-        let send_result: Result<Response> = request.send();
-        if let Result::Ok(response) = send_result {
-            let json_result: Result<IssueResult> = response.json();
-            if let Result::Ok(issue) = json_result {
-                if issue.state.as_str() == "open" {
-                    return ValidationResult::StillValid;
+        request.send().map(|res| {
+            if let Result::Ok(response) = res {
+                let json_result: Result<IssueResult> = block_on(response.json());
+                if let Result::Ok(issue) = json_result {
+                    if issue.state.as_str() == "open" {
+                        return ValidationResult::StillValid;
+                    }
+                } else {
+                    eprintln!("Unable to unwrap json: {}", json_result.unwrap_err());
                 }
             } else {
-                eprintln!("Unable to unwrap json: {}", json_result.unwrap_err());
+                eprintln!("bad response: {}", res.unwrap_err());
             }
-        } else {
-            eprintln!("bad response: {}", send_result.unwrap_err());
-        }
-        return ValidationResult::NoLongerValid;
+            return ValidationResult::NoLongerValid;
+        }).await
     }
 
-    fn arbitrary_url_validation_result(&self, url: &Url) -> ValidationResult {
+    async fn arbitrary_url_validation_result(&self, url: &Url) -> ValidationResult {
         let client = Client::new();
         let request = client.head(url.as_str())
             .header("User-Agent", "younata/mdbook-section-validator");
-        let result: Result<Response> = request.send();
 
-        if let Result::Ok(response) = result {
-            if response.status() == StatusCode::OK {
-                return ValidationResult::StillValid;
+        request.send().map(|result| {
+            if let Result::Ok(response) = result {
+                if response.status() == StatusCode::OK {
+                    return ValidationResult::StillValid;
+                }
             }
-        }
-        return ValidationResult::NoLongerValid;
+            return ValidationResult::NoLongerValid;
+        }).await
     }
 }
 
