@@ -1,6 +1,7 @@
 # mdbook-section-validator
 
-![[CI status](https://ci.younata.com/teams/main/pipelines/knowledge/jobs/mdbook-section-validator/)](https://ci.younata.com/api/v1/pipelines/knowledge/jobs/mdbook-section-validator/badge)
+[![CI status](https://ci.younata.com/api/v1/pipelines/knowledge/jobs/mdbook-section-validator/badge)](https://ci.younata.com/teams/main/pipelines/knowledge/jobs/mdbook-section-validator/)
+[![Latest Version](https://img.shields.io/crates/v/mdbook-section-validator.svg)](https://crates.io/crates/mdbook-section-validator)
 
 mdbook preprocessor for providing sections that are conditionally valid/invalid.
 
