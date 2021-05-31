@@ -22,3 +22,4 @@ reqwest = { version = "0.11.3", features = ["serde_json", "json"] }
 serde = { version = "1.0.126", features = ["derive"] }
 async-trait = "0.1.50"
 futures = "0.3.15"
+tokio = { version = "1.6.1", features = ["macros", "io-util", "rt-multi-thread"] }
