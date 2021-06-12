@@ -351,12 +351,10 @@ other content
     #[async_trait]
     impl IssueValidator for FakeIssueValidator {
         async fn validate(&self, _link: &Issue) -> ValidationResult {
-            async {
-                match &self.validate_behavior {
-                    ValidateBehavior::NoneValid => ValidationResult::NoLongerValid,
-                    ValidateBehavior::AllValid => ValidationResult::StillValid
-                }
-            }.await
+            match &self.validate_behavior {
+                ValidateBehavior::NoneValid => ValidationResult::NoLongerValid,
+                ValidateBehavior::AllValid => ValidationResult::StillValid
+            }
         }
     }
 }
