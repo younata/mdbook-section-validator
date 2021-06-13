@@ -1,5 +1,3 @@
-extern crate tokio;
-
 use clap::{App, Arg, ArgMatches, SubCommand};
 use mdbook_section_validator::ValidatorProcessor;
 use mdbook_section_validator::issue_validator::DefaultIssueValidator;
@@ -17,8 +15,7 @@ pub fn make_app() -> App<'static, 'static> {
         )
 }
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let matches = make_app().get_matches();
     let preprocessor = ValidatorProcessor {
         validator: Box::new(DefaultIssueValidator)
