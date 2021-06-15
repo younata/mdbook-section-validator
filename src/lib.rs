@@ -9,8 +9,6 @@ use mdbook::preprocess::{Preprocessor, PreprocessorContext};
 use url::Url;
 use crate::link_formatter::LinkFormatter;
 use crate::issue_validator::{IssueValidator, issue_from_url, ValidationResult};
-use futures::executor::block_on;
-use futures::stream::{self, StreamExt};
 
 pub struct ValidatorProcessorOptions {
     hide_invalid: bool,
@@ -76,7 +74,7 @@ impl ValidatorProcessor {
                     content.push_str(&text);
                 },
                 ValidationSection::ValidationSection(links, text) => {
-                    let validation_result = self.is_section_valid(links.clone());
+                    let validation_result = self.is_section_valid(&links);
                     if options.hide_invalid && validation_result == ValidationResult::NoLongerValid {
                         continue;
                     }
@@ -142,17 +140,14 @@ impl ValidatorProcessor {
         links_strs.join(",")
     }
 
-    fn is_section_valid(&self, links: Vec<Url>) -> ValidationResult {
-        let stream = stream::unfold(links.into_iter(), |mut links| async {
-            let url = links.next()?;
-            let issue = issue_from_url(&url);
-            let response = self.validator.validate(&issue).await;
-            Some((response, links))
-        });
-        let result = block_on(async { stream.collect::<Vec<ValidationResult>>().await });
-        result.into_iter().reduce(|a, b| {
-            if a == ValidationResult::StillValid && b == ValidationResult::StillValid { a } else { ValidationResult::NoLongerValid }
-        }).unwrap()
+    fn is_section_valid(&self, links: &Vec<Url>) ->ValidationResult {
+        links.into_iter()
+            .map(|u| issue_from_url(u))
+            .map(|issue| self.validator.validate(&issue))
+            .reduce(|a, b|
+            if a == ValidationResult::StillValid && b == ValidationResult::StillValid { a }
+            else { ValidationResult::NoLongerValid }
+        ).unwrap()
     }
 }
 
@@ -164,7 +159,6 @@ mod tests {
     use url::Url;
     use crate::issue_validator::{Issue, ValidationResult};
     use crate::ValidatorProcessorOptions;
-    use async_trait::async_trait;
 
     #[test]
     fn test_validation_sections_single_link() {
@@ -348,9 +342,8 @@ other content
         validate_behavior: ValidateBehavior
     }
 
-    #[async_trait]
     impl IssueValidator for FakeIssueValidator {
-        async fn validate(&self, _link: &Issue) -> ValidationResult {
+        fn validate(&self, _link: &Issue) -> ValidationResult {
             match &self.validate_behavior {
                 ValidateBehavior::NoneValid => ValidationResult::NoLongerValid,
                 ValidateBehavior::AllValid => ValidationResult::StillValid

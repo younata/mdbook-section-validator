@@ -2,10 +2,7 @@ use url::Url;
 use regex::Regex;
 use serde::Deserialize;
 use reqwest::{Result, StatusCode};
-use reqwest::Client;
-use async_trait::async_trait;
-use futures::future::FutureExt;
-use futures::executor::block_on;
+use reqwest::blocking::{Client, Response};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum GithubIssueType {
@@ -56,25 +53,23 @@ struct IssueResult {
     state: String
 }
 
-#[async_trait]
 pub trait IssueValidator {
-    async fn validate(&self, issue: &Issue) -> ValidationResult;
+    fn validate(&self, issue: &Issue) -> ValidationResult;
 }
 
 pub struct DefaultIssueValidator;
 
-#[async_trait]
 impl IssueValidator for DefaultIssueValidator {
-    async fn validate(&self, issue: &Issue) -> ValidationResult {
+    fn validate(&self, issue: &Issue) -> ValidationResult {
         match issue {
-            Issue::Github(owner, repo, number, issue_type, _url) => self.github_validation_result(owner, repo, number, issue_type).await,
-            Issue::Link(url) => self.arbitrary_url_validation_result(url).await
+            Issue::Github(owner, repo, number, issue_type, _url) => self.github_validation_result(owner, repo, number, issue_type),
+            Issue::Link(url) => self.arbitrary_url_validation_result(url)
         }
     }
 }
 
 impl DefaultIssueValidator {
-    async fn github_validation_result(&self, owner: &str, repo: &str, number: &str, issue_type: &GithubIssueType) -> ValidationResult {
+    fn github_validation_result(&self, owner: &str, repo: &str, number: &str, issue_type: &GithubIssueType) -> ValidationResult {
         let issue_kind = match issue_type {
             GithubIssueType::Issue => "issues",
             GithubIssueType::PullRequest => "pulls"
@@ -90,36 +85,34 @@ impl DefaultIssueValidator {
         let client = Client::new();
         let request = client.get(&request_url)
             .header("User-Agent", "younata/mdbook-section-validator");
-        request.send().map(|res| {
-            if let Result::Ok(response) = res {
-                let json_result: Result<IssueResult> = block_on(response.json());
-                if let Result::Ok(issue) = json_result {
-                    if issue.state.as_str() == "open" {
-                        return ValidationResult::StillValid;
-                    }
-                } else {
-                    eprintln!("Unable to unwrap json: {}", json_result.unwrap_err());
+        let send_result: Result<Response> = request.send();
+        if let Result::Ok(response) = send_result {
+            let json_result: Result<IssueResult> = response.json();
+            if let Result::Ok(issue) = json_result {
+                if issue.state.as_str() == "open" {
+                    return ValidationResult::StillValid;
                 }
             } else {
-                eprintln!("bad response: {}", res.unwrap_err());
+                eprintln!("Unable to unwrap json: {}", json_result.unwrap_err());
             }
-            return ValidationResult::NoLongerValid;
-        }).await
+        } else {
+            eprintln!("bad response: {}", send_result.unwrap_err());
+        }
+        return ValidationResult::NoLongerValid;
     }
 
-    async fn arbitrary_url_validation_result(&self, url: &Url) -> ValidationResult {
+    fn arbitrary_url_validation_result(&self, url: &Url) -> ValidationResult {
         let client = Client::new();
         let request = client.head(url.as_str())
             .header("User-Agent", "younata/mdbook-section-validator");
+        let result: Result<Response> = request.send();
 
-        request.send().map(|result| {
-            if let Result::Ok(response) = result {
-                if response.status() == StatusCode::OK {
-                    return ValidationResult::StillValid;
-                }
+        if let Result::Ok(response) = result {
+            if response.status() == StatusCode::OK {
+                return ValidationResult::StillValid;
             }
-            return ValidationResult::NoLongerValid;
-        }).await
+        }
+        return ValidationResult::NoLongerValid;
     }
 }
 

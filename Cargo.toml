@@ -1,6 +1,6 @@
 [package]
 name = "mdbook-section-validator"
-version = "0.2.0"
+version = "0.1.0"
 authors = ["Rachel Brindle <rachel@rachelbrindle.com>"]
 edition = "2018"
 description = "mdBook preprocessor for defining conditionally valid sections."
@@ -18,7 +18,5 @@ pulldown-cmark-to-cmark = "6.0.0"
 url = "2.2.2"
 toml = "0.5.7"
 clap = "2.33.3"
-reqwest = { version = "0.11.3", features = ["serde_json", "json"] }
+reqwest = { version = "0.11.3", features = ["blocking", "serde_json", "json"] }
 serde = { version = "1.0.126", features = ["derive"] }
-async-trait = "0.1.50"
-futures = "0.3.15"
